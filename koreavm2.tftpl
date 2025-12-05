@@ -1,0 +1,95 @@
+#!/bin/bash
+export DEBIAN_FRONTEND=noninteractive
+
+# 1. Global Logging: Redirect stdout and stderr to log file
+LOGFILE="/var/www/html/install.log"
+touch $LOGFILE
+chmod 666 $LOGFILE
+exec > >(tee -a $LOGFILE) 2>&1
+
+echo "Starting deployment at $(date)..."
+
+# 2. Basic Packages
+echo "Updating apt cache..."
+sudo apt-get update -y
+echo "Installing Apache and PHP..."
+sudo apt-get install apache2 php libapache2-mod-php curl -y
+
+# 3. Setup Web Content
+echo "Setting up web content..."
+sudo mkdir -p /var/www/html/upload
+sudo chown www-data:www-data /var/www/html/upload
+sudo chmod 755 /var/www/html/upload
+
+# index.html
+sudo tee /var/www/html/upload/index.html > /dev/null <<EOF
+korea vm2
+<form action="upload.php" method="post" enctype="multipart/form-data">
+  Select image to upload:
+  <input type="file" name="fileToUpload" id="fileToUpload">
+  <input type="submit" value="Upload Image" name="submit">
+</form>
+EOF
+
+# upload.php
+sudo tee /var/www/html/upload/upload.php > /dev/null <<EOF
+<?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+if (\$_SERVER['REQUEST_METHOD'] == 'POST') {
+    \$target_dir = "/tmp/";
+    \$target_file = \$target_dir . basename(\$_FILES["fileToUpload"]["name"]);
+    
+    if (move_uploaded_file(\$_FILES["fileToUpload"]["tmp_name"], \$target_file)) {
+        echo "File uploaded to VM.<br>";
+        
+        \$account_name = "${storage_account_name}";
+        \$container_name = "uploads";
+        \$blob_name = basename(\$_FILES["fileToUpload"]["name"]);
+        
+        \$az_cmd = "az";
+        if (file_exists("/usr/bin/az")) {
+            \$az_cmd = "/usr/bin/az";
+        } elseif (file_exists("/usr/local/bin/az")) {
+            \$az_cmd = "/usr/local/bin/az";
+        } else {
+             // Fallback check
+             \$output = shell_exec("which az");
+             \$path = \$output ? trim(\$output) : '';
+             if (!empty(\$path)) {
+                 \$az_cmd = \$path;
+             } else {
+                 echo "<div style='color:orange; font-weight:bold; margin: 10px 0;'>⚠️ Azure CLI is still installing. Please wait...</div>";
+                 echo "<pre style='background:#f0f0f0; padding:10px;'>Log status:\\n" . shell_exec("tail -n 10 /var/www/html/install.log") . "</pre>";
+                 \$az_cmd = "";
+             }
+        }
+
+        if (!empty(\$az_cmd)) {
+            \$cmd = "export HOME=/tmp; \$az_cmd login --identity > /dev/null 2>&1; \$az_cmd storage blob upload --account-name \$account_name --container-name \$container_name --name \$blob_name --file \$target_file --auth-mode login 2>&1";
+            \$output = shell_exec(\$cmd);
+            echo "Azure Storage Output: <pre>\$output</pre>";
+        }
+    } else {
+        echo "Error uploading file. Error: " . \$_FILES["fileToUpload"]["error"];
+    }
+} else {
+    echo "Method not allowed";
+}
+?>
+EOF
+
+# 4. Azure CLI Installation (The robust way)
+echo "Installing Azure CLI via convenience script..."
+curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+
+echo "Azure CLI installed successfully."
+az --version
+
+# 5. Finalize
+echo "Restarting Apache..."
+sudo systemctl enable apache2
+sudo systemctl restart apache2
+echo "Deployment Complete at $(date)."
