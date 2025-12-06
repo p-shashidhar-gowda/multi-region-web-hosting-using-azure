@@ -10,3 +10,4 @@ terraform validate
 terraform plan 
 (if there are no errors from the previous commands , then run the next one )
 terraform apply --auto-approve
+(Wait for 15-20 min after the code is executed fully , or else it wont work)

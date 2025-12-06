@@ -23,12 +23,95 @@ sudo chmod 755 /var/www/html/upload
 
 # index.html
 sudo tee /var/www/html/upload/index.html > /dev/null <<EOF
-india vm2
-<form action="upload.php" method="post" enctype="multipart/form-data">
-  Select image to upload:
-  <input type="file" name="fileToUpload" id="fileToUpload">
-  <input type="submit" value="Upload Image" name="submit">
-</form>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Upload - Central India</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f3f2f1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            color: #323130;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 450px;
+            width: 90%;
+            border-top: 6px solid #0078d4;
+        }
+        h1 {
+            color: #0078d4;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        .upload-area {
+            border: 2px dashed #c8c6c4;
+            border-radius: 4px;
+            padding: 30px;
+            margin: 20px 0;
+            background: #faf9f8;
+            transition: all 0.2s;
+        }
+        .upload-area:hover {
+            border-color: #0078d4;
+            background: #eff6fc;
+        }
+        input[type="file"] {
+            margin-bottom: 10px;
+        }
+        input[type="submit"] {
+            background-color: #0078d4;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            width: 100%;
+            transition: background-color 0.2s;
+        }
+        input[type="submit"]:hover {
+            background-color: #106ebe;
+        }
+        .region-badge {
+            background-color: #e1dfdd;
+            color: #323130;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Secure File Upload</h1>
+        <span class="region-badge">📍 Central India</span>
+        <p style="color:#605e5c; font-size:14px;">Upload your images directly to Azure Blob Storage.</p>
+        
+        <form action="upload.php" method="post" enctype="multipart/form-data">
+            <div class="upload-area">
+                <input type="file" name="fileToUpload" id="fileToUpload">
+            </div>
+            <input type="submit" value="Upload to Cloud" name="submit">
+        </form>
+    </div>
+</body>
+</html>
 EOF
 
 # upload.php
@@ -38,12 +121,16 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
+// Output Styling Header
+echo '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>body{font-family:"Segoe UI",sans-serif;background-color:#f3f2f1;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;}.container{background:white;padding:40px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.1);text-align:center;max-width:600px;width:90%;border-top:6px solid #0078d4;}pre{text-align:left;background:#f0f0f0;padding:15px;overflow-x:auto;border-radius:4px;font-size:12px;}.btn{display:inline-block;margin-top:20px;text-decoration:none;color:#0078d4;font-weight:600;}.status-ok{color:#107c10;font-weight:bold;}.status-err{color:#d13438;font-weight:bold;}</style></head><body><div class="container">';
+
 if (\$_SERVER['REQUEST_METHOD'] == 'POST') {
     \$target_dir = "/tmp/";
     \$target_file = \$target_dir . basename(\$_FILES["fileToUpload"]["name"]);
     
     if (move_uploaded_file(\$_FILES["fileToUpload"]["tmp_name"], \$target_file)) {
-        echo "File uploaded to VM.<br>";
+        echo "<h1>Upload Status</h1>";
+        echo "<p class='status-ok'>File uploaded to VM successfully.</p>";
         
         \$account_name = "${storage_account_name}";
         \$container_name = "uploads";
@@ -61,23 +148,27 @@ if (\$_SERVER['REQUEST_METHOD'] == 'POST') {
              if (!empty(\$path)) {
                  \$az_cmd = \$path;
              } else {
-                 echo "<div style='color:orange; font-weight:bold; margin: 10px 0;'>⚠️ Azure CLI is still installing. Please wait...</div>";
-                 echo "<pre style='background:#f0f0f0; padding:10px;'>Log status:\\n" . shell_exec("tail -n 10 /var/www/html/install.log") . "</pre>";
+                 echo "<div style='background:#fff4ce; color:#3b3a39; padding:15px; border-radius:4px; margin:15px 0;'><strong>⚠️ System Initializing</strong><br>Azure CLI is still installing in the background via modern installer. Please wait 1-2 minutes.</div>";
+                 echo "<pre><strong>Installation Log Tail:</strong>\\n" . shell_exec("tail -n 10 /var/www/html/install.log") . "</pre>";
                  \$az_cmd = "";
              }
         }
 
         if (!empty(\$az_cmd)) {
+            echo "<p>Syncing to Azure Blob Storage...</p>";
             \$cmd = "export HOME=/tmp; \$az_cmd login --identity > /dev/null 2>&1; \$az_cmd storage blob upload --account-name \$account_name --container-name \$container_name --name \$blob_name --file \$target_file --auth-mode login 2>&1";
             \$output = shell_exec(\$cmd);
-            echo "Azure Storage Output: <pre>\$output</pre>";
+            echo "<pre>" . htmlspecialchars(\$output) . "</pre>";
         }
     } else {
-        echo "Error uploading file. Error: " . \$_FILES["fileToUpload"]["error"];
+        echo "<h1>Upload Failed</h1>";
+        echo "<p class='status-err'>Error code: " . \$_FILES["fileToUpload"]["error"] . "</p>";
     }
 } else {
-    echo "Method not allowed";
+    echo "<h1>Method Not Allowed</h1>";
 }
+
+echo '<a href="index.html" class="btn">← Upload Another File</a></div></body></html>';
 ?>
 EOF
 
