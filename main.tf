@@ -9,7 +9,7 @@ terraform {
 
 provider "azurerm" {
   features {}
-  subscription_id = "***********************"
+  subscription_id = "***********************"          #put ur subscription id here
 }
 
 #---------------------------------------------------------RESOURCE-GROUP - rg "project"
