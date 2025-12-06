@@ -1,5 +1,6 @@
+*Note: This project was run on linux  
 Prerequisites :
-   Terraform installed on the system 
+   Terraform installed on the system (check using terraform --version)
 How to run :
   1. in main.tf file , change the subscription id to your own subscription id 
       (u can get the subscription id using the command az account show )
