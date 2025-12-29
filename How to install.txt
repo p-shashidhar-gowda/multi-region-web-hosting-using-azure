@@ -1,6 +1,7 @@
 *Note: This project was run on linux  
 Prerequisites :
    Terraform installed on the system (check using terraform --version)
+   azure cli is installed and logged into your account (check ur subscription id using az account show )
 How to run :
   1. in main.tf file , change the subscription id to your own subscription id 
       (u can get the subscription id using the command az account show )
@@ -10,4 +11,4 @@ terraform validate
 terraform plan 
 (if there are no errors from the previous commands , then run the next one )
 terraform apply --auto-approve
-(Wait for 15-20 min after the code is executed fully , or else it wont work)
+(Wait for 15-20 min after the code is executed fully , or else it wont work , it takes time for health probes to properly check if the machines are reachable )
